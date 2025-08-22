@@ -1,0 +1,198 @@
+
+
+body {
+  background: #0d469c;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.form-container {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 25px;
+  background: #8ebdf3;
+  border-radius: 15px;
+  box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+  font-size: 1.8rem;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.container {
+  background: linear-gradient(135deg, #bbd7f3, #f1d0f5); /* gradient */
+  border-radius: 20px;
+  padding: 80px;
+  max-width: 1100px;
+  margin: 20px auto;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+.form-section {
+  padding: 20px;
+}
+.saved-section {
+  padding: 25px;
+}
+
+
+
+textarea {
+  width: 100%;
+  height: 120px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #dd9999;
+  outline: none;
+  transition: border 0.3s;
+}
+
+textarea:focus {
+  border-color: #007bff;
+}
+
+.buttons {
+  margin-top: 10px;
+  display: flex;
+  gap: 20px;
+}
+
+button {
+  padding: .5px 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* center horizontally */
+  margin-bottom: 20px;
+}
+.logo-container img {
+  border-radius: 50%;
+}
+
+
+.btn-submit {
+  background: #007bff;
+  color: white;
+}
+
+.btn-reset {
+  background: #899199;
+  color: rgb(234, 231, 231);
+}
+
+.btn-clear {
+  background: #dc3545;
+  color: white;
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+/* ===========================
+   Saved Message (right pane)
+   =========================== */
+.saved {
+  background: #7182a3;
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 0 rgba(82, 160, 209, 0.6), inset 0 4px 16px rgba(28,39,72,.06);
+}
+
+.saved-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.saved-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #2b2f38;
+  letter-spacing: .2px;
+}
+
+.saved-count {
+  font-size: .9rem;
+  color: #7a869a;
+}
+
+.saved-empty {
+  color: #8a94a6;
+  font-style: italic;
+  padding: 6px 2px;
+}
+
+/* Scrollable list of messages */
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 340px;          /* adjust if you need */
+  overflow: auto;
+  padding-right: 4px;
+}
+
+/* scrollbar styling (webkit browsers) */
+.saved-list::-webkit-scrollbar { width: 8px; }
+.saved-list::-webkit-scrollbar-thumb {
+  background: #d0eea5;
+  border-radius: 8px;
+}
+
+/* each saved message card */
+.saved-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #bcc3d6;
+  border: 1px solid #2ab451;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 2px 10px rgba(28,39,72,.05);
+  transition: transform .06s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.saved-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(28,39,72,.08);
+  border-color: #e6ebf3;
+}
+
+.saved-text {
+  color: #3a3f50;
+  line-height: 1.4;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* actions (delete, etc.) */
+.saved-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-delete {
+  background: transparent;
+  border: none;
+  color: #e23f4f;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background .2s ease, transform .06s ease, color .2s ease;
+}
+
+.saved-delete:hover   { background: #ffe9ec; }
+.saved-delete:active  { transform: translateY(1px); }
+
+
