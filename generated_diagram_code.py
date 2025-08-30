@@ -1,68 +1,117 @@
 
 from diagrams import Diagram, Cluster, Edge
-from diagrams.aws.network import APIGateway
+from diagrams.aws.compute import EKS
+from diagrams.aws.database import RDS
+from diagrams.aws.network import APIGateway, CloudFront
+from diagrams.aws.storage import S3
 from diagrams.onprem.compute import Server
-from diagrams.onprem.database import PostgreSQL
 from diagrams.onprem.queue import Kafka
 from diagrams.onprem.inmemory import Redis
+from diagrams.onprem.monitoring import Grafana, Prometheus
 from diagrams.onprem.network import Internet
+from diagrams.k8s.compute import Pod
 
-with Diagram("E-commerce Microservices", show=False, filename="static/gpt_generated_diagram"):
-    client = Internet("React Frontend")
-    api_gateway = APIGateway("API Gateway")
-    postgresql = PostgreSQL("PostgreSQL DB")
-    redis = Redis("Redis Cache")
-    kafka = Kafka("Apache Kafka")
-    external_payment_gateway = Internet("External Payment Gateway")
+with Diagram("E-Commerce Design", show=False, filename="static/gpt_generated_diagram", direction="LR"):
+    # External Components
+    client = Internet("User Clients\n(Web/Mobile)")
+    external_payment_gateway = Server("External Payment\nGateway")
 
-    with Cluster("Microservices (Java Spring Boot)"):
-        user_svc = Server("User Service")
-        product_catalog_svc = Server("Product Catalog Service")
-        shopping_cart_svc = Server("Shopping Cart Service")
-        order_svc = Server("Order Service")
-        payment_svc = Server("Payment Service")
-        recommendation_svc = Server("Recommendation Service")
-        inventory_svc = Server("Inventory Service")
-        search_svc = Server("Search Service") # Elasticsearch connections omitted due to forbidden module
+    with Cluster("Edge Infrastructure"):
+        api_gateway = APIGateway("API Gateway")
+        cloudfront = CloudFront("CDN (CloudFront)")
+        s3 = S3("S3 (Static Assets/Logs)")
 
-    # 1. User Interaction Flow
-    client >> Edge(label="Requests (HTTPS)") >> api_gateway
+    with Cluster("Deployment & Orchestration"):
+        with Cluster("Kubernetes Cluster (EKS)") as cluster_eks_node:
+            eks_cluster = EKS("Kubernetes Cluster (EKS)") # Explicit EKS node
+            with Cluster("Core Microservices"):
+                user_service = Pod("User Service")
+                product_catalog_service = Pod("Product Catalog Service")
+                cart_service = Pod("Cart Service")
+                order_service = Pod("Order Service")
+                payment_service = Pod("Payment Service")
+                search_service = Pod("Search Service")
+                recommendation_engine = Pod("Recommendation Engine")
+                notification_service = Pod("Notification Service")
+                admin_service = Pod("Admin Service")
 
-    # 2. Request Routing (API Gateway to Microservices)
-    api_gateway >> Edge(label="/users") >> user_svc
-    api_gateway >> Edge(label="/products") >> product_catalog_svc
-    api_gateway >> Edge(label="/cart") >> shopping_cart_svc
-    api_gateway >> Edge(label="/orders") >> order_svc
-    api_gateway >> Edge(label="/payments") >> payment_svc
-    api_gateway >> Edge(label="/recommendations") >> recommendation_svc
-    api_gateway >> Edge(label="/search") >> search_svc
+    with Cluster("Data Stores"):
+        rds = RDS("Relational DB (RDS)")
+        redis = Redis("Redis (Cache)")
+        # Elasticsearch is omitted as it is not in the allowed imports and has no direct equivalent.
 
-    # 3. Data Persistence (Microservices to PostgreSQL)
-    user_svc >> Edge(label="CRUD User Data") >> postgresql
-    product_catalog_svc >> Edge(label="CRUD Product Data") >> postgresql
-    shopping_cart_svc >> Edge(label="CRUD Cart Data") >> postgresql
-    order_svc >> Edge(label="CRUD Order Data") >> postgresql
-    payment_svc >> Edge(label="Store Payment Status") >> postgresql
-    recommendation_svc >> Edge(label="Store User Behavior") >> postgresql
-    inventory_svc >> Edge(label="Manage Stock Data") >> postgresql
+    with Cluster("Messaging & Event Bus"):
+        kafka = Kafka("Kafka (Message Broker)")
 
-    # 4. Caching (Microservices to Redis)
-    user_svc >> Edge(label="Cache User Sessions") >> redis
-    product_catalog_svc >> Edge(label="Cache Product Details") >> redis
-    shopping_cart_svc >> Edge(label="Cache Cart State") >> redis
-    order_svc >> Edge(label="Cache Order Status") >> redis
+    with Cluster("Observability"):
+        prometheus = Prometheus("Prometheus (Monitoring)")
+        grafana = Grafana("Grafana (Dashboards)")
 
-    # 5. Asynchronous Communication (Microservices via Kafka)
-    order_svc >> Edge(label="Publish 'Order Placed' Event") >> kafka
-    kafka >> Edge(label="Consume 'Order Placed' (Async Update)") >> inventory_svc
-    kafka >> Edge(label="Consume 'Order Placed' (Update User History)") >> recommendation_svc
+    # Relationships
 
-    # 6. Search Data Flow & 7. Product Search: Omitted due to Elasticsearch being a forbidden component.
+    # Client Interactions
+    client >> Edge(label="Static Content Fetch") >> cloudfront
+    client >> Edge(label="API Requests (HTTP/S)") >> api_gateway
 
-    # 8. Payment Processing
-    order_svc >> Edge(label="Initiate Payment") >> payment_svc
-    payment_svc - Edge(label="Process Payment (PCI DSS)") - external_payment_gateway
+    # Edge Infrastructure Routing to Services
+    api_gateway >> Edge(label="Routes API") >> [
+        user_service,
+        product_catalog_service,
+        cart_service,
+        order_service,
+        search_service,
+        admin_service
+    ]
 
-    # 9. Synchronous Microservice Interactions
-    order_svc >> Edge(label="Check/Reserve Stock") >> inventory_svc
-    inventory_svc >> Edge(label="Stock Confirmation") >> order_svc
+    # Service to Data Store Interactions
+    user_service >> Edge(label="Reads/Writes User Data") >> rds
+    product_catalog_service >> Edge(label="Reads/Writes Product Data") >> rds
+    cart_service >> Edge(label="Reads/Writes Cart Data") >> rds
+    order_service >> Edge(label="Reads/Writes Order Data") >> rds
+
+    # ProductCatalogService -> Elasticsearch (omitted)
+    # SearchService -> Elasticsearch (omitted)
+
+    user_service >> Edge(label="Caches User Sessions") >> redis
+    product_catalog_service >> Edge(label="Caches Product Details") >> redis
+    cart_service >> Edge(label="Caches Cart State") >> redis
+    recommendation_engine >> Edge(label="Caches Recommendations") >> redis
+
+    # Synchronous Service-to-Service Communication (RESTful APIs)
+    cart_service >> Edge(label="Get Product Details") >> product_catalog_service
+    order_service >> Edge(label="Clear Cart after Order") >> cart_service
+    order_service >> Edge(label="Request Payment Processing") >> payment_service
+    payment_service >> Edge(label="Integrates With") >> external_payment_gateway
+
+    admin_service >> Edge(label="Manage Users") >> user_service
+    admin_service >> Edge(label="Manage Products") >> product_catalog_service
+    admin_service >> Edge(label="Manage Orders") >> order_service
+
+    # Asynchronous Service-to-Service Communication (Kafka)
+    order_service >> Edge(label="Publishes 'Order Placed' Event") >> kafka
+    kafka >> Edge(label="Consumes Order Events") >> notification_service
+
+    product_catalog_service >> Edge(label="Publishes Product Change Events") >> kafka
+    kafka >> Edge(label="Consumes Product Changes") >> recommendation_engine
+    kafka >> Edge(label="Consumes Product Changes\n(for re-indexing)") >> search_service # Retained, SearchService itself handles it
+
+    user_service >> Edge(label="Publishes User Activity Events") >> kafka
+    cart_service >> Edge(label="Publishes Cart Activity Events") >> kafka
+    kafka >> Edge(label="Consumes User/Cart Activity") >> recommendation_engine
+
+    # Recommendation Engine Specific
+    recommendation_engine >> Edge(label="Reads Behavioral/Product Data") >> rds
+
+    # Observability
+    [
+        user_service,
+        product_catalog_service,
+        cart_service,
+        order_service,
+        payment_service,
+        search_service,
+        recommendation_engine,
+        notification_service,
+        admin_service
+    ] >> Edge(label="Exposes Metrics") >> prometheus
+    prometheus >> Edge(label="Scrapes & Visualizes Metrics") >> grafana

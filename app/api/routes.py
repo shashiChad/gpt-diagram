@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.schemas.schemas import inputData,outputData,Input,Output
+from app.schemas.schemas import inputData,outputData,Input,Output,ExeDia
 import app.services.enhancer_service as es
 from app.schemas.enhancer_prompt import PROMPT_TEMPLATE
 from google.genai import types
@@ -59,7 +59,7 @@ def save_generated_python_diagram_code(generated_diagram_code):
     return file_path
 
 def execute_generated_python_diagram_code(code):
-    subprocess.run(code)
+    subprocess.run(["python",code])
 # ---------------------end--------------------------------
 @router.get("/")
 def root():
@@ -79,7 +79,7 @@ def enhance(txt:inputData):
     return {"enhanced_text":new_text}
 
 @router.post('/generate_diagram',response_model=Output)
-def generate_and_execute_diagram(txt:Input):
+def generate_sysinfo_and_diagram(txt:Input):
     data=txt.text
     software_requirements=generate_software_requirements_prompt(data)
     generated_dot_diagram = generate_dot_language(software_requirements)
@@ -88,11 +88,14 @@ def generate_and_execute_diagram(txt:Input):
 
     save_generated_python_diagram_code(generated_diagram_code)
 
-    return {"system_info":generated_diagram_code}
+    return Output(
+        system_info=software_requirements,
+        diagram_code=generated_diagram_code
+    )
 
-@router.post('/execute_diagram')
+@router.get('/execute_diagram',response_model=ExeDia)
 def execute_diagram():
     execute_generated_python_diagram_code("generated_diagram_code.py")
-    return {"message":"success"}
+    return {"msg": "hello from server"}
 
 

@@ -10,3 +10,6 @@ class Input(BaseModel):
     text:str
 class Output(BaseModel):
     system_info:str
+    diagram_code:str
+class ExeDia(BaseModel):
+    msg:str
