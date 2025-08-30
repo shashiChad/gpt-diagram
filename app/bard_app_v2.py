@@ -1,29 +1,21 @@
-from fastapi import APIRouter
-from app.schemas.schemas import inputData,outputData,Input,Output
-import app.services.enhancer_service as es
-from app.schemas.enhancer_prompt import PROMPT_TEMPLATE
-from google.genai import types
-# -------------------new import---------------------------
 
-from app.bard import call_gemini
+from flask import Flask, render_template, request, jsonify
+from bard import call_gemini
 from langchain.prompts import PromptTemplate
 from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
 import subprocess
-from app.design_prompt import software_design_diagram_code_prompt_template, software_design_diagram_code_prompt_template_test,software_design_requirements_prompt_template, output_template, software_design_diagram_dot_language,modify_code_prompt
+from design_prompt import software_design_diagram_code_prompt_template, software_design_diagram_code_prompt_template_test,software_design_requirements_prompt_template, output_template, software_design_diagram_dot_language,modify_code_prompt
 
-# --------------------end--------------------------------
-
-router = APIRouter()
-
-# ---------------------functions--------------------------
+app = Flask(__name__)
 
 def generate_software_requirements_prompt(user_summary):
     prompt = PromptTemplate(template=software_design_requirements_prompt_template, input_variables=['user_summary'])
     prompt_formatted_str = prompt.format(user_summary=user_summary)
     generated_output = call_gemini(prompt_formatted_str)
     return generated_output
+
 
 def generate_dot_language(generated_design_requirement):
     prompt = PromptTemplate(template=software_design_diagram_dot_language,
@@ -34,6 +26,7 @@ def generate_dot_language(generated_design_requirement):
     generated_dot_code = generated_dot_code.replace("```", "")
     return generated_dot_output
 
+
 def generate_diagram_code_prompt(generated_dot_diagram, output_template):
     prompt = PromptTemplate(template=software_design_diagram_code_prompt_template_test,
                             input_variables=['generated_dot_diagram', 'output_template'])
@@ -43,6 +36,7 @@ def generate_diagram_code_prompt(generated_dot_diagram, output_template):
     generated_diagram_code = generated_diagram_code.replace("```", "")
     return generated_diagram_code
 
+
 def modify_code(code, error_message):
     prompt = PromptTemplate(template=modify_code_prompt, input_variables=['code', 'error_message'])
     prompt_formatted_str = prompt.format(code=code, error_message=error_message)
@@ -51,6 +45,7 @@ def modify_code(code, error_message):
     generated_diagram_code = generated_diagram_code.replace("```", "")
     return generated_diagram_code
 
+
 def save_generated_python_diagram_code(generated_diagram_code):
     # clean_code = generated_diagram_code.replace("python", "")
     file_path = "generated_diagram_code.py"
@@ -58,41 +53,54 @@ def save_generated_python_diagram_code(generated_diagram_code):
         file.write(generated_diagram_code)
     return file_path
 
+
 def execute_generated_python_diagram_code(code):
-    subprocess.run(code)
-# ---------------------end--------------------------------
-@router.get("/")
-def root():
-    return {"message":"hello from server"}
-@router.post("/enhancer",response_model=outputData)
-def enhance(txt:inputData):
-    raw_text= txt.text
-    content = PROMPT_TEMPLATE.format(text = raw_text)
-    response = es.client.models.generate_content(
-        model = es.model,
-        contents= content,
-        config = types.GenerateContentConfig(
-            temperature = 0
-        )
-    )
-    new_text = response.text
-    return {"enhanced_text":new_text}
+    try:
+        subprocess.run(["python", "auto_code_validator.py", code], check=True, capture_output=True, text=True)
+        result = subprocess.run(["python", code], check=True, capture_output=True, text=True)
+        output = result.stdout.strip()
+        status = "correct"
+    except subprocess.CalledProcessError as e:
+        output = f"Error : {e.stderr.strip()}"
+        status = "incorrect"
+    except Exception as e:
+        output = f"An unexpected error occurred: {e}"
+        status = "incorrect"
 
-@router.post('/generate_diagram',response_model=Output)
-def generate_and_execute_diagram(txt:Input):
-    data=txt.text
-    software_requirements=generate_software_requirements_prompt(data)
-    generated_dot_diagram = generate_dot_language(software_requirements)
+    return output, status
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/generate_and_execute_diagram', methods=['POST'])
+def generate_and_execute_diagram():
+    user_summary = request.form['user_summary']
+    print("User Summary", user_summary)
+
+    # Step 1: Generate Software Requirements Prompt
+    generated_design_requirement = generate_software_requirements_prompt(user_summary)
+
+    generated_dot_diagram = generate_dot_language(generated_design_requirement)
+    print(generated_dot_diagram)
+    # Step 2: Generate Diagram Code Prompt
     generated_diagram_code = generate_diagram_code_prompt(generated_dot_diagram, output_template)
-    # diagram_code = highlight(generated_diagram_code, PythonLexer(), HtmlFormatter())
+    diagram_code = highlight(generated_diagram_code, PythonLexer(), HtmlFormatter())
+    # Step 3: Save and Execute Generated Python Diagram Code
+    code_file = save_generated_python_diagram_code(generated_diagram_code)
+    execution_result, status = execute_generated_python_diagram_code(code_file)
+    print(execution_result)
 
-    save_generated_python_diagram_code(generated_diagram_code)
-
-    return {"system_info":generated_diagram_code}
-
-@router.post('/execute_diagram')
-def execute_diagram():
-    execute_generated_python_diagram_code("generated_diagram_code.py")
-    return {"message":"success"}
+    return render_template('display.html', generated_design_requirement=generated_design_requirement,
+                           generated_diagram_code=diagram_code, python_output="static/gpt_generated_diagram.png",
+                           message=execution_result)
 
 
+# @app.route('/get_data', methods=['GET'])
+# def get_data():
+#     return df.to_json(orient='records')
+
+
+if __name__ == '__main__':
+    app.run(debug=True, use_reloader=False)
