@@ -13,3 +13,7 @@ class Output(BaseModel):
     diagram_code:str
 class ExeDia(BaseModel):
     msg:str
+class EditDia(BaseModel):
+    diagram:str
+class Exeedit(BaseModel):
+    messg:str

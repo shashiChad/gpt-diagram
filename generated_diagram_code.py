@@ -1,117 +1,63 @@
 
 from diagrams import Diagram, Cluster, Edge
-from diagrams.aws.compute import EKS
-from diagrams.aws.database import RDS
-from diagrams.aws.network import APIGateway, CloudFront
+from diagrams.aws.compute import Lambda
+from diagrams.aws.database import Dynamodb
 from diagrams.aws.storage import S3
 from diagrams.onprem.compute import Server
-from diagrams.onprem.queue import Kafka
-from diagrams.onprem.inmemory import Redis
-from diagrams.onprem.monitoring import Grafana, Prometheus
+from diagrams.onprem.database import PostgreSQL
 from diagrams.onprem.network import Internet
-from diagrams.k8s.compute import Pod
+from diagrams.programming.language import Python
 
-with Diagram("E-Commerce Design", show=False, filename="static/gpt_generated_diagram", direction="LR"):
-    # External Components
-    client = Internet("User Clients\n(Web/Mobile)")
-    external_payment_gateway = Server("External Payment\nGateway")
+with Diagram("Software Design", show=False, filename="static/gpt_generated_diagram", direction="LR"):
+    # External User
+    user = Internet("User")
 
-    with Cluster("Edge Infrastructure"):
-        api_gateway = APIGateway("API Gateway")
-        cloudfront = CloudFront("CDN (CloudFront)")
-        s3 = S3("S3 (Static Assets/Logs)")
+    # Frontend Components
+    frontend = Server("Frontend\n(React, Tailwind CSS)\nUser Interface")
 
-    with Cluster("Deployment & Orchestration"):
-        with Cluster("Kubernetes Cluster (EKS)") as cluster_eks_node:
-            eks_cluster = EKS("Kubernetes Cluster (EKS)") # Explicit EKS node
-            with Cluster("Core Microservices"):
-                user_service = Pod("User Service")
-                product_catalog_service = Pod("Product Catalog Service")
-                cart_service = Pod("Cart Service")
-                order_service = Pod("Order Service")
-                payment_service = Pod("Payment Service")
-                search_service = Pod("Search Service")
-                recommendation_engine = Pod("Recommendation Engine")
-                notification_service = Pod("Notification Service")
-                admin_service = Pod("Admin Service")
+    # Backend Services Cluster
+    with Cluster("Backend Services"):
+        backend_api = Server("FastAPI Backend\n(API Server & Controller)")
+        langchain_orchestrator = Python("LangChain Orchestrator\n(LLM & DB Integration)")
 
-    with Cluster("Data Stores"):
-        rds = RDS("Relational DB (RDS)")
-        redis = Redis("Redis (Cache)")
-        # Elasticsearch is omitted as it is not in the allowed imports and has no direct equivalent.
+    # AI Service
+    google_gemini = Lambda("Google Gemini\n(LLM Service)")
 
-    with Cluster("Messaging & Event Bus"):
-        kafka = Kafka("Kafka (Message Broker)")
+    # Databases
+    vector_database = Dynamodb("Vector Database\n(Embeddings Store)")
+    postgresql = PostgreSQL("PostgreSQL\n(Relational DB)")
 
-    with Cluster("Observability"):
-        prometheus = Prometheus("Prometheus (Monitoring)")
-        grafana = Grafana("Grafana (Dashboards)")
+    # PDF Content Source
+    pdf_content = S3("PDF Content\n(Input)")
 
-    # Relationships
+    # Relationships and Data Flows
 
-    # Client Interactions
-    client >> Edge(label="Static Content Fetch") >> cloudfront
-    client >> Edge(label="API Requests (HTTP/S)") >> api_gateway
+    # User Interaction
+    user >> Edge(label="Interacts (Browser)") >> frontend
+    frontend >> Edge(label="Renders UI") >> user
 
-    # Edge Infrastructure Routing to Services
-    api_gateway >> Edge(label="Routes API") >> [
-        user_service,
-        product_catalog_service,
-        cart_service,
-        order_service,
-        search_service,
-        admin_service
-    ]
+    # Frontend-Backend Communication
+    frontend >> Edge(label="REST API Calls") >> backend_api
+    backend_api >> Edge(label="REST API Responses") >> frontend
 
-    # Service to Data Store Interactions
-    user_service >> Edge(label="Reads/Writes User Data") >> rds
-    product_catalog_service >> Edge(label="Reads/Writes Product Data") >> rds
-    cart_service >> Edge(label="Reads/Writes Cart Data") >> rds
-    order_service >> Edge(label="Reads/Writes Order Data") >> rds
+    # Backend Internal Orchestration
+    backend_api >> Edge(label="Routes LLM/DB Tasks") >> langchain_orchestrator
+    langchain_orchestrator >> Edge(label="Returns Processed Data") >> backend_api
 
-    # ProductCatalogService -> Elasticsearch (omitted)
-    # SearchService -> Elasticsearch (omitted)
+    # LLM Interaction
+    langchain_orchestrator >> Edge(label="LLM API Calls\n(QGen, AnsEval, Embeddings)") >> google_gemini
+    google_gemini >> Edge(label="LLM Responses") >> langchain_orchestrator
 
-    user_service >> Edge(label="Caches User Sessions") >> redis
-    product_catalog_service >> Edge(label="Caches Product Details") >> redis
-    cart_service >> Edge(label="Caches Cart State") >> redis
-    recommendation_engine >> Edge(label="Caches Recommendations") >> redis
+    # Vector Database Interaction
+    langchain_orchestrator >> Edge(label="Query / Write Embeddings") >> vector_database
+    vector_database >> Edge(label="Returns Relevant Chunks") >> langchain_orchestrator
 
-    # Synchronous Service-to-Service Communication (RESTful APIs)
-    cart_service >> Edge(label="Get Product Details") >> product_catalog_service
-    order_service >> Edge(label="Clear Cart after Order") >> cart_service
-    order_service >> Edge(label="Request Payment Processing") >> payment_service
-    payment_service >> Edge(label="Integrates With") >> external_payment_gateway
+    # Relational Database Interaction
+    backend_api >> Edge(label="CRUD Operations\n(User, QnA History, PDF Metadata)") >> postgresql
+    postgresql >> Edge(label="Data Retrieval") >> backend_api
 
-    admin_service >> Edge(label="Manage Users") >> user_service
-    admin_service >> Edge(label="Manage Products") >> product_catalog_service
-    admin_service >> Edge(label="Manage Orders") >> order_service
-
-    # Asynchronous Service-to-Service Communication (Kafka)
-    order_service >> Edge(label="Publishes 'Order Placed' Event") >> kafka
-    kafka >> Edge(label="Consumes Order Events") >> notification_service
-
-    product_catalog_service >> Edge(label="Publishes Product Change Events") >> kafka
-    kafka >> Edge(label="Consumes Product Changes") >> recommendation_engine
-    kafka >> Edge(label="Consumes Product Changes\n(for re-indexing)") >> search_service # Retained, SearchService itself handles it
-
-    user_service >> Edge(label="Publishes User Activity Events") >> kafka
-    cart_service >> Edge(label="Publishes Cart Activity Events") >> kafka
-    kafka >> Edge(label="Consumes User/Cart Activity") >> recommendation_engine
-
-    # Recommendation Engine Specific
-    recommendation_engine >> Edge(label="Reads Behavioral/Product Data") >> rds
-
-    # Observability
-    [
-        user_service,
-        product_catalog_service,
-        cart_service,
-        order_service,
-        payment_service,
-        search_service,
-        recommendation_engine,
-        notification_service,
-        admin_service
-    ] >> Edge(label="Exposes Metrics") >> prometheus
-    prometheus >> Edge(label="Scrapes & Visualizes Metrics") >> grafana
+    # PDF Ingestion & Processing Flow
+    pdf_content >> Edge(label="Upload PDF") >> backend_api
+    backend_api >> Edge(label="Initiates PDF Processing\n(Text Extraction, Chunking)") >> langchain_orchestrator
+    langchain_orchestrator >> Edge(label="Generate Embeddings (for PDF chunks)") >> google_gemini
+    langchain_orchestrator >> Edge(label="Store Embeddings (of PDF chunks)") >> vector_database

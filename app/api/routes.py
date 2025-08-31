@@ -1,10 +1,10 @@
-from fastapi import APIRouter
-from app.schemas.schemas import inputData,outputData,Input,Output,ExeDia
+from fastapi import APIRouter,Body
+from app.schemas.schemas import inputData,outputData,Input,Output,ExeDia,EditDia,Exeedit
 import app.services.enhancer_service as es
 from app.schemas.enhancer_prompt import PROMPT_TEMPLATE
 from google.genai import types
 # -------------------new import---------------------------
-
+import codecs
 from app.bard import call_gemini
 from langchain.prompts import PromptTemplate
 from pygments import highlight
@@ -60,6 +60,10 @@ def save_generated_python_diagram_code(generated_diagram_code):
 
 def execute_generated_python_diagram_code(code):
     subprocess.run(["python",code])
+
+def write_string_to_file(filename, content):
+    with open(filename, 'w') as file: #encoding='utf-8'
+        file.write(content.strip())
 # ---------------------end--------------------------------
 @router.get("/")
 def root():
@@ -96,6 +100,22 @@ def generate_sysinfo_and_diagram(txt:Input):
 @router.get('/execute_diagram',response_model=ExeDia)
 def execute_diagram():
     execute_generated_python_diagram_code("generated_diagram_code.py")
-    return {"msg": "hello from server"}
+    return {"msg": "diagram generated"}
+# ----------------------------------------------------------------------------------------------------------------------
+# have so dockerize it to make secure
+# @router.post('/edit_and_execute',response_model=Exeedit)
+# def edit_and_execute(diagram_code:str=Body(...)):
+#     # diagram_code=inp.diagram
+#     cleaned_diagram_code = diagram_code.replace('\u00A0', ' ')
+#     final_formatted_code = codecs.decode(cleaned_diagram_code, 'unicode_escape')
+#     write_string_to_file("generated_diagram_code.py",final_formatted_code)
+#     execute_generated_python_diagram_code("generated_diagram_code.py")
+#     return {"messg": "diagram generated"}
 
+@router.post('/edit_and_execute', response_model=Exeedit)
+def edit_and_execute(inp: EditDia):
+    diagram_code = inp.diagram
+    write_string_to_file("generated_diagram_code.py", diagram_code)
 
+    execute_generated_python_diagram_code("generated_diagram_code.py")
+    return {"messg": "diagram generated"}
