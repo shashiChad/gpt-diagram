@@ -1,3 +1,4 @@
+/*
 import { useState } from 'react';
 import {ClipboardCopy} from "lucide-react";
 
@@ -14,14 +15,14 @@ const handleCopy = async () => {
 };
   return (
     <div className="w-full rounded-xl bg-gray-800 border border-gray-600 shadow-lg overflow-hidden">
-      {/*Header*/}
-      <div className="bg-gray-700 px-4 py-2 border-b border-gray-600 flex items-center justify-between">
+      /*Header*/
+      /*<div className="bg-gray-700 px-4 py-2 border-b border-gray-600 flex items-center justify-between">
          <h2 className="text-sm md:text-base font-semibold text-gray-200">
            {output ? "Enhanced ouput" : "Awaiting input..."}
          </h2>
 
-         {/*Copy Button*/}
-         {output && (
+         /*Copy Button*/
+        /* {output && (
           <button
           onClick={handleCopy}
           className="flex items-center gap-1 text-gray-300 hover:text-white transition"
@@ -36,8 +37,8 @@ const handleCopy = async () => {
          )}
       </div>
        
-       {/*content area */}
-       <div className="p-5 min-h-[180px] md:min-h-[220px] overflow-auto">
+       /*content area */
+       /*<div className="p-5 min-h-[180px] md:min-h-[220px] overflow-auto">
            {output ? (
             <p className="whitespace-pre-line text-base md:text-lg leading-relaxed text-gray-100">
               {output}
@@ -52,5 +53,6 @@ const handleCopy = async () => {
     </div>
   );
 }
+*/
 
 

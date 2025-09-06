@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InputBox from './InputBox.jsx';
 import GenerateButton from './GenerateButton.jsx';
-import OutputBox from './OutputBox.jsx';
 import Footer from './Footer.jsx';
 export default function App () {
   const [input,setInput] = useState("");
@@ -38,11 +37,11 @@ export default function App () {
         onGenerate={handleGenerate}
         />
       </div>
-      
-      {/*Output*/}
+      {/*
       <OutputBox
        output={output}
       />
+          */}
             </div>
          
             </main>
