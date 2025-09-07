@@ -1,3 +1,14 @@
 .env
 .venv
 app/bard.py
+static
+edit_code.py
+edit_diagram_code.py
+generated_diagram_code.py
+gpt_generated_diagram.png
+langchain-google-genai
+New Text Document.txt
+test.py
+test_edit_diagram.ipynb
+test_edit_diagram.py
+test_route.py

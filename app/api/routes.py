@@ -12,10 +12,18 @@ from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
 import subprocess
 from app.design_prompt import software_design_diagram_code_prompt_template, software_design_diagram_code_prompt_template_test,software_design_requirements_prompt_template, output_template, software_design_diagram_dot_language,modify_code_prompt
+# ----------------terminal edit import----------------------------
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
+load_dotenv()
 
+from app.schemas.edit_diagram_code import TEMPLATE_DIAGRAM_EDIT
 # --------------------end--------------------------------
-
+# from fastapi.middleware.cors import CORSMiddleware
 router = APIRouter()
+
 
 # ---------------------functions--------------------------
 
@@ -60,6 +68,12 @@ def save_generated_python_diagram_code(generated_diagram_code):
 
 def execute_generated_python_diagram_code(code):
     subprocess.run(["python",code])
+# ---------docker execution--------------------
+def execute_docker():
+    build_command = ["docker", "build", "-t","diagramgpt", "."]
+    subprocess.run(build_command)
+    run_command = ["docker", "run", "-v","./static:/test/static","diagramgpt"]
+    subprocess.run(run_command)
 
 def write_string_to_file(filename, content):
     with open(filename, 'w') as file: #encoding='utf-8'
@@ -99,8 +113,8 @@ def generate_sysinfo_and_diagram(txt:Input):
 
 @router.get('/execute_diagram',response_model=ExeDia)
 def execute_diagram():
-    execute_generated_python_diagram_code("generated_diagram_code.py")
-    return {"msg": "diagram generated"}
+    execute_docker()
+    return {"diagram": r"static\gpt_generated_diagram.png"}
 # ----------------------------------------------------------------------------------------------------------------------
 # have so dockerize it to make secure
 # @router.post('/edit_and_execute',response_model=Exeedit)
@@ -112,10 +126,26 @@ def execute_diagram():
 #     execute_generated_python_diagram_code("generated_diagram_code.py")
 #     return {"messg": "diagram generated"}
 
-@router.post('/edit_and_execute', response_model=Exeedit)
-def edit_and_execute(inp: EditDia):
+@router.post('/terminal_save', response_model=Exeedit)
+def terminal_save(inp: EditDia):
     diagram_code = inp.diagram
     write_string_to_file("generated_diagram_code.py", diagram_code)
 
-    execute_generated_python_diagram_code("generated_diagram_code.py")
-    return {"messg": "diagram generated"}
+    # execute_generated_python_diagram_code("generated_diagram_code.py")
+    return {"messg": "diagram saved"}
+
+@router.post('/edit_code', response_model=Exeedit)
+def edit_code(inp:EditDia):
+    with open('generated_diagram_code.py', 'r') as f:
+        code_content = f.read()
+    user_input = inp
+    prompt = PromptTemplate.from_template(TEMPLATE_DIAGRAM_EDIT)
+    llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
+    parser = StrOutputParser()
+    chain = prompt | llm | parser
+    response = chain.invoke({
+        "user_input": user_input,
+        "diagram_code": code_content
+    })
+    # write_string_to_file('generated_diagram_code.py', response)
+    return {"messg": response}
