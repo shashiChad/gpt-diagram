@@ -12,3 +12,6 @@ test.py
 test_edit_diagram.ipynb
 test_edit_diagram.py
 test_route.py
+test_serper.ipynb
+test_serper.py
+__pycache__

@@ -1,5 +1,5 @@
 from fastapi import APIRouter,Body
-from app.schemas.schemas import inputData,outputData,Input,Output,ExeDia,EditDia,Exeedit
+from app.schemas.schemas import inputData,outputData,Input,Output,ExeDia,EditDia,Exeedit,Action
 import app.services.enhancer_service as es
 from app.schemas.enhancer_prompt import PROMPT_TEMPLATE
 from google.genai import types
@@ -15,6 +15,7 @@ from app.design_prompt import software_design_diagram_code_prompt_template, soft
 # ----------------terminal edit import----------------------------
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_community.utilities import GoogleSerperAPIWrapper
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 load_dotenv()
@@ -23,7 +24,7 @@ from app.schemas.edit_diagram_code import TEMPLATE_DIAGRAM_EDIT
 # --------------------end--------------------------------
 # from fastapi.middleware.cors import CORSMiddleware
 router = APIRouter()
-
+search= GoogleSerperAPIWrapper()
 
 # ---------------------functions--------------------------
 
@@ -107,7 +108,7 @@ def generate_sysinfo_and_diagram(txt:Input):
     save_generated_python_diagram_code(generated_diagram_code)
 
     return Output(
-        system_info=software_requirements,
+        # system_info=software_requirements,
         diagram_code=generated_diagram_code
     )
 
@@ -134,18 +135,60 @@ def terminal_save(inp: EditDia):
     # execute_generated_python_diagram_code("generated_diagram_code.py")
     return {"messg": "diagram saved"}
 
-@router.post('/edit_code', response_model=Exeedit)
+# @router.post('/edit_code', response_model=Exeedit)
+# def edit_code(inp:EditDia):
+#     with open('generated_diagram_code.py', 'r') as f:
+#         code_content = f.read()
+#     user_input = inp
+#     prompt = PromptTemplate.from_template(TEMPLATE_DIAGRAM_EDIT)
+#     llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
+#     parser = StrOutputParser()
+#     chain = prompt | llm | parser
+#     response = chain.invoke({
+#         "user_input": user_input,
+#         "diagram_code": code_content
+#     })
+#     # write_string_to_file('generated_diagram_code.py', response)
+#     return {"messg": response}
+
+# ------------------------testing using agentic workflow--------------------------------
+
+@router.post('/edit_code',response_model=Exeedit)
 def edit_code(inp:EditDia):
     with open('generated_diagram_code.py', 'r') as f:
         code_content = f.read()
     user_input = inp
+    # ----------------------------------------------------------------------------
+    LLM=ChatGoogleGenerativeAI(model='gemini-2.5-flash',temperature=0)
+    prmpt=PromptTemplate.from_template(
+        """
+            You are an expert at analyzing user requests about software architecture diagrams. Extract the user's intent and the specific technologies they mention.If the user want to modify or replace i.e, want to change one with other,then take the technologies only he want to add or introducing and keep intent as modify for that.For delete use delete
+            {user_request}
+        """
+    )
+    chn=prmpt|LLM.with_structured_output(Action)
+
+    result=chn.invoke({'user_request':user_input})
+
+    if result.intent.upper() in ["ADD","MODIFY"]:
+        # print(result.technologies)
+        result1=[]
+        target_site = "diagrams.mingrammer.com"
+        for tech in result.technologies:
+            search_query = f' from {tech} site:- {target_site}'
+            result1.append(search.run(search_query))
+        search_result="\n\n".join(result1)
+        print(search_result)
+    else:
+        search_result="No new info required"
+    # -----------------------------------------------------------------------------
     prompt = PromptTemplate.from_template(TEMPLATE_DIAGRAM_EDIT)
     llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash')
     parser = StrOutputParser()
     chain = prompt | llm | parser
     response = chain.invoke({
         "user_input": user_input,
-        "diagram_code": code_content
+        "diagram_code": code_content,
+        "search_content": search_result
     })
-    # write_string_to_file('generated_diagram_code.py', response)
     return {"messg": response}
