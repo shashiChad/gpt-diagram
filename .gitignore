@@ -1,6 +1,6 @@
 .env
 .venv
-app/bard.py
+
 static
 edit_code.py
 edit_diagram_code.py

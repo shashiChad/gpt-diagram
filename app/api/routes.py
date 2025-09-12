@@ -97,7 +97,7 @@ def enhance(txt:inputData):
     new_text = response.text
     return {"enhanced_text":new_text}
 
-@router.post('/generate_diagram',response_model=Output)
+@router.post('/generate_diagram_code',response_model=Output)
 def generate_sysinfo_and_diagram(txt:Input):
     data=txt.text
     software_requirements=generate_software_requirements_prompt(data)
