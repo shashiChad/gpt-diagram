@@ -1,6 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+
+import { useEffect, useRef, useState, useId } from "react";
 import { Link } from "react-router-dom";
 import mermaid from "mermaid";
+
+// Simple debounce hook
+function useDebounce(value, delay = 500) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debounced;
+}
 
 export default function DiagramSection() {
   const [diagramCode, setDiagramCode] = useState(`graph TD
@@ -9,35 +22,31 @@ B --> C{Condition?}
 C -->|Yes| D[Option 1]
 C -->|No| E[Option 2]`);
 
-  const diagramRef = useRef(null);
+  const [svgContent, setSvgContent] = useState(null);
+  const [error, setError] = useState(null);
 
+  const diagramId = useId(); // unique ID per component
+  const debouncedCode = useDebounce(diagramCode, 400); // debounce keystrokes
+
+  // Initialize Mermaid once
   useEffect(() => {
-    if (diagramRef.current) {
-      try {
-        diagramRef.current.innerHTML = "";
-        mermaid.initialize({ startOnLoad: false, theme: "dark" });
+    mermaid.initialize({ startOnLoad: false, theme: "dark" });
+  }, []);
 
-        mermaid
-          .render("theDiagram", diagramCode)
-          .then(({ svg }) => {
-            if (diagramRef.current) {
-              diagramRef.current.innerHTML = svg;
-            }
-          })
-          .catch(() => {
-            if (diagramRef.current) {
-              diagramRef.current.innerHTML =
-                "<p class='text-red-400'>⚠️ Error in Mermaid code</p>";
-            }
-          });
-      } catch (err) {
-        if (diagramRef.current) {
-          diagramRef.current.innerHTML =
-            "<p class='text-red-400'>⚠️ Error in Mermaid code</p>";
-        }
-      }
-    }
-  }, [diagramCode]);
+  // Render Mermaid when code changes (debounced)
+  useEffect(() => {
+    setError(null);
+    setSvgContent(null);
+
+    mermaid
+      .render(`diagram-${diagramId}`, debouncedCode)
+      .then(({ svg }) => {
+        setSvgContent(svg);
+      })
+      .catch((err) => {
+        setError(err.message || "⚠️ Error in Mermaid code");
+      });
+  }, [debouncedCode, diagramId]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-900 text-white">
@@ -46,8 +55,8 @@ C -->|No| E[Option 2]`);
         <h1 className="text-lg md:text-xl font-bold">📊 Diagram Editor</h1>
       </div>
 
-      {/* Main Content: full screen split */}
-      <div className="flex flex-1">
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-hidden">
         {/* Left: Editor */}
         <textarea
           value={diagramCode}
@@ -58,23 +67,27 @@ C -->|No| E[Option 2]`);
         />
 
         {/* Right: Preview */}
-        <div className="flex-1 flex items-center justify-center bg-gray-950 border-l border-gray-700">
-          <div
-            ref={diagramRef}
-            className="w-full h-full flex items-center justify-center"
-          >
+        <div className="flex-1 flex items-center justify-center bg-gray-950 border-l border-gray-700 overflow-auto p-4">
+          {error ? (
+            <p className="text-red-400">{error}</p>
+          ) : svgContent ? (
+            <div
+              className="max-w-full max-h-full"
+              dangerouslySetInnerHTML={{ __html: svgContent }}
+            />
+          ) : (
             <p className="text-gray-400">Rendering diagram...</p>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Footer */}
-      <div className=" p-4  flex justify-center">
+      <div className="p-4 flex justify-center">
         <Link
           to="/"
-          className="px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-700"
+          className="px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition"
         >
-          ⬅ Back to Home
+           Back to Home
         </Link>
       </div>
     </div>
